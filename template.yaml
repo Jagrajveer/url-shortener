@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: URL Shortener application
+
+Resources:
+  UrlShortnerTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: urlShortner
+      PrimaryKey:
+        Name: short_url
+        Type: String
+      # BillingMode: PAY_PER_REQUEST
+
+  UrlShortnerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/url-shortner
+      Handler: app.handler
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UrlShortnerTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UrlShortnerTable
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - app.ts
+        External:
+          - "aws-lambda"
+          - "@aws-sdk/client-dynamodb"
+
+Outputs:
+  HttpApiUrl:
+    Description: URL of the HTTP API
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
+  UrlShortnerFunction:
+    Description: Lambda Function ARN
+    Value: !GetAtt UrlShortnerFunction.Arn
+  UrlShortnerTable:
+    Description: DynamoDB Table Name
+    Value: !Ref UrlShortnerTable
